@@ -11,8 +11,6 @@ ADD etc/bind/zones/akka.org/db.17.172 /etc/bind/zones/akka.org/db.17.172
 ADD etc/bind/named.conf.local /etc/bind/named.conf.local
 ADD etc/bind/named.conf.options /etc/bind/named.conf.options
 
-RUN /etc/init.d/bind9 restart
-
 EXPOSE 53:53/udp
 
 CMD /root/run.sh
