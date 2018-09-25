@@ -1,0 +1,23 @@
+;
+; BIND data file for akka.local
+;
+$TTL    3h
+@       IN      SOA     docker.akka.org. sniggel.akka.org. (
+                          1        ; Serial
+                          3h       ; Refresh after 3 hours
+                          1h       ; Retry after 1 hour
+                          1w       ; Expire after 1 week
+                          1h )     ; Negative caching TTL of 1 day
+;
+@       IN      NS      docker.akka.org.
+
+; PTR Records
+1.0    IN    PTR    docker.akka.org.
+2.0    IN    PTR    host1.akka.org.
+3.0    IN    PTR    host2.akka.org.
+4.0    IN    PTR    host2.akka.org.
+
+1.0.17.172    IN    PTR    docker.akka.org.
+2.0.17.172    IN    PTR    host1.akka.org.
+3.0.17.172    IN    PTR    host2.akka.org.
+4.0.17.172    IN    PTR    ns1.akka.org.

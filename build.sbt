@@ -2,7 +2,7 @@
 lazy val `cluster-sandbox` =
   project
     .in(file("."))
-    .enablePlugins(DockerPlugin)
+    .enablePlugins(DockerPlugin, JavaAppPackaging)
     .settings(settings)
     .settings(libraryDependencies ++= Seq(
       dependencies.akkaActorTyped,
@@ -57,9 +57,10 @@ lazy val dockerSettings =
     Docker / daemonUser := "root",
     Docker / maintainer := "Gabriel Robitaille-Montpetit",
     Docker / version := "latest",
-    dockerBaseImage := "openjdk:8-jre-alpine",
+    dockerBaseImage := "openjdk:10.0.2-slim",
     dockerExposedPorts := Seq(2552, 8558),
-    dockerRepository := Some("sniggel")
+    dockerUsername := Some("sniggel"),
+    defaultLinuxInstallLocation := "/opt/docker"
   )
 
 // Dependencies

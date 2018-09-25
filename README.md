@@ -14,3 +14,7 @@ This project is running 3 dockers containers, 2 Akka nodes forming a cluster and
 The cluster is started by using docker-compose.
 
 Part of the cluster, namely the Entity is using Akka-Typed which at the time this page was written, was a work in progress at Lightbend. Akka-Typed is the next version of Akka using Typed actors.
+
+## Notes
+
+To push to docker hub, you must login with the docker CLI first.
