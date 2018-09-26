@@ -17,7 +17,7 @@ $TTL    3h
 3.0    IN    PTR    host2.akka.org.
 4.0    IN    PTR    host2.akka.org.
 
-1.0.17.172    IN    PTR    docker.akka.org.
-2.0.17.172    IN    PTR    host1.akka.org.
-3.0.17.172    IN    PTR    host2.akka.org.
-4.0.17.172    IN    PTR    ns1.akka.org.
+1.0.180.172    IN    PTR    docker.akka.org.
+2.0.180.172    IN    PTR    host1.akka.org.
+3.0.180.172    IN    PTR    host2.akka.org.
+4.0.180.172    IN    PTR    ns1.akka.org.

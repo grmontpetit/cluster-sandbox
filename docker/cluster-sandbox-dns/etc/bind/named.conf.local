@@ -10,7 +10,7 @@ zone "akka.org" {
     file "/etc/bind/zones/akka.org/db.akka.org";
 };
 
-zone "17.172.in-addr.arpa" {
+zone "180.172.in-addr.arpa" {
     type master;
-    file "/etc/bind/zones/akka.org/db.17.172";
+    file "/etc/bind/zones/akka.org/db.180.172";
 };

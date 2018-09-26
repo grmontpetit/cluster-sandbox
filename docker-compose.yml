@@ -1,0 +1,38 @@
+version: '2'
+
+services:
+  host1:
+    image: sniggel/cluster-sandbox:latest
+    ports:
+      - "8558:8558/tcp"
+      - "2552/tcp"
+    dns: 172.180.0.4
+    networks:
+        app_net:
+            ipv4_address: 172.180.0.2
+
+  host2:
+    image: sniggel/cluster-sandbox:latest
+    ports:
+      - "8558/tcp"
+      - "2552/tcp"
+    dns: 172.180.0.4
+    networks:
+        app_net:
+            ipv4_address: 172.180.0.3
+  dns:
+    image: sniggel/cluster-sandbox-dns:latest
+    ports:
+      - "53/udp"
+    networks:
+        app_net:
+            ipv4_address: 172.180.0.4
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 172.180.0.0/24
+        gateway: 172.180.0.1
