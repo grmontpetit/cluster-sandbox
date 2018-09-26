@@ -1,4 +1,3 @@
-
 ;
 ; BIND data file for akka.local
 ;
@@ -18,17 +17,14 @@ host1.akka.org.      IN    A    172.180.0.2
 host2.akka.org.      IN    A    172.180.0.3
 
 ; We force the IP when using docker-compose
-
 ns1.akka.org.        IN    A    172.180.0.4
 
 ; In the Main.scala file, the cluster name is "cluster"
 ; In application.conf the "service-namespace" is akka.org
-
 cluster.akka.org.    IN    A    172.180.0.2
 cluster.akka.org.    IN    A    172.180.0.3
 
 
 ; SRV record are used by akka clustering to retrieve cluster ports
-
 cluster.akka.org.    IN    SRV    0    0    2552    host1.akka.org.
 cluster.akka.org.    IN    SRV    0    0    2552    host2.akka.org.
