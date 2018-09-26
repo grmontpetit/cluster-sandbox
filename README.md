@@ -33,6 +33,10 @@ We can also check the output of `dig` to check the dns zones and records:
 
 When a node is started, it asks the DNS for A and SRV records and then try to establish a connection to all the cluster nodes with a gossip protocol. A leader is then elected and then the shards are automaticatlly distributed over the nodes.
 
+In this case, we are not using any seed nodes, everything is done dynamically with DNS records.
+
+Eventually, a better solution for a production environment is to use the kubernetes api to resolve new nodes joining a namespace. This is supported by akka.
+
 ## Notes
 
 To push to docker hub, you must login with the docker CLI first.
