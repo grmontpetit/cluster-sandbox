@@ -67,7 +67,7 @@ lazy val dockerSettings =
 lazy val dependencies =
   new {
     object Version {
-      val akka                     = "2.5.16"
+      val akka                     = "2.5.17"
       val akkaHttp                 = "10.1.1"
       val akkaHttpJson             = "1.20.1"
       val akkaHttpSession          = "0.5.5"

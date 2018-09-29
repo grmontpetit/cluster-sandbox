@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Configuration>
+    <Appenders>
+        <Console name="stdout">
+            <PatternLayout>
+                <pattern>[%level] [%date{MM/DD/YYY HH:mm:ss:rrr}] [%logger{0}] [%X{akkaSource}] - %msg%n</pattern>
+            </PatternLayout>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="rocks.heikoseeberger.chakka" level="${sys:loglevel.chakka:-debug}"
+                additivity="false">
+            <AppenderRef ref="stdout"/>
+        </Logger>
+
+        <Root level="${sys:loglevel.root:-info}">
+            <AppenderRef ref="stdout"/>
+        </Root>
+    </Loggers>
+</Configuration>

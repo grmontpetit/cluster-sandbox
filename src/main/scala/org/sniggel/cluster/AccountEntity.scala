@@ -3,14 +3,21 @@ package org.sniggel.cluster
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.persistence.typed.SideEffect
-import akka.persistence.typed.scaladsl.{Effect, PersistentBehavior, PersistentBehaviors}
+import akka.persistence.typed.scaladsl.{Effect, PersistentBehaviors}
 import akka.persistence.typed.scaladsl.PersistentBehaviors.CommandHandler
 import java.io.Serializable
 
-object AccountEntity {
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.Behaviors
+import org.apache.logging.log4j.scala.Logging
+
+object AccountEntity extends Logging {
+
+  // Service Key
+  final val AccountServiceKey: ServiceKey[Command] = ServiceKey[Command]("account-entity")
 
   // Sharding
-  val ShardingTypeName = EntityTypeKey[Command]("account-entity")
+  final val ShardingTypeName: EntityTypeKey[Command] = EntityTypeKey[Command]("account-entity")
 
   // Persistent ID
   final val PersistenceId = "AccountEntity"
@@ -45,24 +52,30 @@ object AccountEntity {
   final case class State(accounts: Map[Username, Account] = Map.empty[Username, Account])
 
   def apply(): String => Behavior[Command] = { id =>
-    println("starting Account Entity")
-    PersistentBehaviors
-      .receive(PersistenceId + id, State(), commandHandler(), eventHandler())
+    logger.info(s"Setting up AccountEntity $id")
+    Behaviors.setup { context =>
+      logger.info(s"Registering AccountEntity with Receptionist $AccountServiceKey")
+      context.system.receptionist ! Receptionist.Register(AccountServiceKey, context.self)
+      PersistentBehaviors
+        .receive[Command, Event, State](PersistenceId + id, State(),
+        commandHandler(),
+        eventHandler())
+    }
   }
 
   def commandHandler(): CommandHandler[Command, Event, State] = {
-    case (_, State(accounts), CreateAccountCommand(username, password, replyTo)) =>
+    case (state, CreateAccountCommand(username, password, replyTo)) =>
       // Check state to see if the account already exist
-      accounts.get(username)
+      state.accounts.get(username)
         .fold(persistAndReply(username, password, replyTo)) { _ =>
           Effect
             .none
             .andThen(SideEffect[State](_ => replyTo ! CreateAccountConflictReply))
         }
-    case (_, State(_), TriggerSomething) =>
-      println(s"Received a command on my entity: $EntityId")
+    case (_, TriggerSomething) =>
+      logger.info(s"Received a command on my entity: $EntityId")
       Effect.none
-    case (_, State(_), PassivateAccount) =>
+    case (_, PassivateAccount) =>
       Effect.stop
   }
 
