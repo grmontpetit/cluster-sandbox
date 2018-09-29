@@ -71,15 +71,6 @@ object Api extends Logging {
     }
   }
 
-  /* CODE SAMPLES
-    val registered: Future[Receptionist.Registered] =
-    system.receptionist ? (Receptionist.Register(key, service, _))
-  registered.onSuccess {
-    case key.Registered(ref) ⇒
-      // ref is the right type here
-      ref ! "woho"
-  }
- */
   def receptionist(context: akka.actor.ActorContext)
                   (implicit timeout: Timeout,
                    scheduler: Scheduler): Future[Receptionist.Listing] = {
