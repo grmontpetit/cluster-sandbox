@@ -7,6 +7,7 @@ services:
       - "9000:9000"
       - "8558:8558/tcp"
       - "2552/tcp"
+      - "9042/tcp"
     dns: 172.180.0.4
     networks:
         app_net:
@@ -17,6 +18,7 @@ services:
     ports:
       - "8558/tcp"
       - "2552/tcp"
+      - "9042/tcp"
     dns: 172.180.0.4
     networks:
         app_net:
