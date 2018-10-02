@@ -9,6 +9,7 @@ lazy val `cluster-sandbox` =
       dependencies.akkaClusterShardingTyped,
       dependencies.akkaDiscoveryDns,
       dependencies.akkaHttp,
+      dependencies.akkaHttpCirce,
       dependencies.akkaHttpSession,
       dependencies.akkaLog4j,
       dependencies.akkaManagementClusterBootstrap,
@@ -58,7 +59,7 @@ lazy val dockerSettings =
     Docker / maintainer := "Gabriel Robitaille-Montpetit",
     Docker / version := "latest",
     dockerBaseImage := "openjdk:10.0.2-slim",
-    dockerExposedPorts := Seq(2552, 8558),
+    dockerExposedPorts := Seq(2552, 8558, 9042),
     dockerUsername := Some("sniggel"),
     defaultLinuxInstallLocation := "/opt/docker"
   )
@@ -91,6 +92,7 @@ lazy val dependencies =
     val akkaClusterShardingTyped       = "com.typesafe.akka"                  %% "akka-cluster-sharding-typed"       % Version.akka
     val akkaDiscoveryDns               = "com.lightbend.akka.discovery"       %% "akka-discovery-dns"                % Version.akkaManagement
     val akkaHttp                       = "com.typesafe.akka"                  %% "akka-http"                         % Version.akkaHttp
+    val akkaHttpCirce                  = "de.heikoseeberger"                  %% "akka-http-circe"                   % Version.akkaHttpJson
     val akkaHttpSession                = "com.softwaremill.akka-http-session" %% "core"                              % Version.akkaHttpSession
     val akkaHttpTestkit                = "com.typesafe.akka"                  %% "akka-http-testkit"                 % Version.akkaHttp
     val akkaLog4j                      = "de.heikoseeberger"                  %% "akka-log4j"                        % Version.akkaLog4j

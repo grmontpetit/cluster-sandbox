@@ -4,6 +4,7 @@ services:
   host1:
     image: sniggel/cluster-sandbox:latest
     ports:
+      - "9000:9000"
       - "8558:8558/tcp"
       - "2552/tcp"
     dns: 172.180.0.4
