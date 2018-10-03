@@ -1,0 +1,40 @@
+
+syntax = "proto3";
+
+option java_package = "org.sniggel.cluster.protobuf";
+option optimize_for = SPEED;
+
+package org.sniggel.cluster.messages;
+
+// state
+message Account {
+    string username = 1;
+    string password = 2;
+    string nickname = 3;
+}
+
+message AccountFieldEntry {
+    string username = 1;
+    Account Account = 2;
+}
+
+message State {
+    repeated AccountFieldEntry accounts = 1;
+    repeated string ping = 2;
+}
+
+// commands
+message Ping {
+    // in proto3 all fields are optional
+    string ipaddress = 1;
+    string replyto = 2;
+}
+
+message CreateAccountCommand {
+
+}
+
+message GetStateCommand {
+
+}
+// events
