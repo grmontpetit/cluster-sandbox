@@ -31,9 +31,7 @@ object SystemGuardian extends Logging {
 
         // Create account entity shard
         accountEntityShard(sharding, context.system.toUntyped)
-        accountEntityShard(sharding, context.system.toUntyped)
 
-        // TODO maybe move this inside the API to resolve shards on the fly and add data replication on events
         val accounts: EntityRef[AccountEntity.Command] =
           ClusterSharding(system).entityRefFor(AccountEntity.ShardingTypeName, AccountEntity.EntityId)
 
@@ -51,7 +49,7 @@ object SystemGuardian extends Logging {
   private def startApi(system: akka.actor.ActorSystem,
                        accounts: EntityRef[AccountEntity.Command]): Unit = {
     implicit val untypedSystem: akka.actor.ActorSystem = system
-    implicit val mat: Materializer            = ActorMaterializer()(system.toTyped)
+    implicit val mat: Materializer = ActorMaterializer()(system.toTyped)
     implicit val readJournal: CassandraReadJournal =
       PersistenceQuery(untypedSystem)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)

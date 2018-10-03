@@ -1,5 +1,8 @@
 package org.sniggel.cluster
 
+import java.net.InetAddress
+import java.nio.charset.StandardCharsets.UTF_8
+
 import akka.Done
 import akka.actor.CoordinatedShutdown.{PhaseServiceRequestsDone, PhaseServiceUnbind, Reason}
 import akka.actor.typed.ActorRef
@@ -8,15 +11,21 @@ import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.{ActorSystem, CoordinatedShutdown, Scheduler}
 import akka.cluster.sharding.typed.scaladsl.EntityRef
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.StatusCodes.{Conflict, Created, OK}
+import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling
+import akka.http.scaladsl.model.MediaTypes.`text/event-stream`
+import akka.http.scaladsl.model.StatusCodes.{BadRequest, Conflict, Created, OK}
+import akka.http.scaladsl.model.headers.`Last-Event-ID`
+import akka.http.scaladsl.model.sse.ServerSentEvent
+import akka.http.scaladsl.model.{HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.pattern.after
+import akka.persistence.query.EventEnvelope
 import akka.persistence.query.scaladsl.EventsByPersistenceIdQuery
 import akka.stream.Materializer
 import akka.util.Timeout
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import org.apache.logging.log4j.scala.Logging
-import org.sniggel.cluster.AccountEntity.{CreateAccountCommand, Reply, Ping}
+import org.sniggel.cluster.AccountEntity.{CreateAccountCommand, GetStateCommand, Ping, Reply}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, _}
@@ -68,7 +77,9 @@ object Api extends Logging {
     implicit val timeout: Timeout = askTimeout
     import Directives._
     import ErrorAccumulatingCirceSupport._
+    import EventStreamMarshalling._
     import io.circe.generic.auto._
+    import io.circe.syntax._
 
     pathPrefix("api") {
       pathEnd {
@@ -89,17 +100,70 @@ object Api extends Logging {
                     complete(Created)
                   case CreateAccountConflictReply =>
                     complete(Conflict)
+                  case _ =>
+                    complete(BadRequest)
                 }
             }
           }
         }
       }~
-      pathPrefix("trigger") {
+      pathPrefix("ping") {
+        import AccountEntity._
         pathEnd {
           get {
-            complete {
-              accounts ! Ping
-              OK
+            extractClientIP { ip =>
+              onSuccess(accounts ? ping(ip.toOption)) {
+                case p: Pong =>
+                  complete(p)
+                case _ =>
+                  complete(BadRequest)
+              }
+            }
+          }
+        }
+      }~
+      pathPrefix("state") {
+        import AccountEntity._
+        pathEnd {
+          get {
+            onSuccess(accounts ? state()) {
+              case s: State =>
+                complete(s)
+              case _ =>
+                complete(BadRequest)
+            }
+          }
+        }
+      }~
+      // FIXME stream not working properly
+      pathPrefix("eventstream") {
+        get {
+          optionalHeaderValueByName(`Last-Event-ID`.name) { lastEventId =>
+            try {
+              val fromSeqNo = lastEventId.getOrElse("-1").trim.toLong + 1
+              complete {
+                readJournal
+                  .eventsByPersistenceId(AccountEntity.PersistenceId, fromSeqNo, Long.MaxValue)
+                  .collect {
+                    case EventEnvelope(_, _, seqNo, ac: AccountEntity.AccountCreatedEvent) =>
+                      ServerSentEvent(ac.asJson.noSpaces,
+                                      "account-created",
+                                      seqNo.toString)
+                    case EventEnvelope(_, _, seqNo, p: AccountEntity.Pinged) =>
+                      ServerSentEvent(p.asJson.noSpaces,
+                                      "pinged",
+                                      seqNo.toString)
+                  }.keepAlive(eventsMaxIdle, () => ServerSentEvent.heartbeat)
+              }
+            } catch {
+              case _: NumberFormatException =>
+                complete(
+                  HttpResponse(
+                    BadRequest,
+                    entity = HttpEntity(`text/event-stream`,
+                                        "Last-Event-Id must be numeric!".getBytes(UTF_8))
+                  )
+                )
             }
           }
         }
@@ -119,4 +183,11 @@ object Api extends Logging {
   private def createAccount(username: String, password: String, nickname: String)
                            (replyTo: ActorRef[Reply]): CreateAccountCommand =
     CreateAccountCommand(username, password, nickname, replyTo)
+
+  private def ping(ipAddress: Option[InetAddress])
+                  (replyTo: ActorRef[Reply]): Ping = Ping(ipAddress, replyTo)
+
+  private def state()
+                   (replyTo: ActorRef[Reply]): GetStateCommand =
+    GetStateCommand(replyTo)
 }
