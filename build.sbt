@@ -2,7 +2,7 @@
 lazy val `cluster-sandbox` =
   project
     .in(file("."))
-    .enablePlugins(DockerPlugin, JavaAppPackaging)
+    .enablePlugins(DockerPlugin, JavaAppPackaging, ProtobufPlugin)
     .settings(settings)
     .settings(libraryDependencies ++= Seq(
       dependencies.akkaActorTyped,
