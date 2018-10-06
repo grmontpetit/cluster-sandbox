@@ -13,13 +13,8 @@ message Account {
     string nickname = 3;
 }
 
-message AccountFieldEntry {
-    string username = 1;
-    Account Account = 2;
-}
-
 message State {
-    repeated AccountFieldEntry accounts = 1;
+    repeated Account accounts = 1;
     repeated string ping = 2;
 }
 
@@ -63,4 +58,9 @@ message CreateAccountSuccessReply {
 
 message CreateAccountConflictReply {
     int64 timestamp = 1;
+}
+
+message Pong {
+    string pong = 1;
+    string entityId = 2;
 }

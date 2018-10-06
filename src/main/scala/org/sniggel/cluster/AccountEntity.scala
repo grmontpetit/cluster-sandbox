@@ -35,7 +35,7 @@ object AccountEntity extends Logging {
 
   // Commands
   sealed trait Command extends Serializable
-  final case class Ping(ipAddress: Option[InetAddress] = None,
+  final case class Ping(ipAddress: Option[IpAddress],
                         ReplyTo: ReplyTo) extends Command
   final case class CreateAccountCommand(username: Username,
                                         password: Password,
