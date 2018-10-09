@@ -1,4 +1,4 @@
-before_install: install-dependencies.sh
+before_install: bash ./install-dependencies.sh
 language: scala
 scala:
    - 2.12.6
