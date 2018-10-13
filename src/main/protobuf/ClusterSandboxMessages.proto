@@ -8,21 +8,26 @@ package org.sniggel.cluster.messages;
 
 // State
 message Account {
-    string username = 1;
-    string password = 2;
-    string nickname = 3;
+    string id = 1;
+    string username = 2;
+    string password = 3;
+    string nickname = 4;
 }
 
+message PingData {
+    string timestamp = 1;
+    string ip = 2;
+}
 message State {
     repeated Account accounts = 1;
-    repeated string ping = 2;
+    repeated PingData ping = 2;
 }
 
 // Commands
 message Ping {
-    // in proto3 all fields are optional
-    string ipaddress = 1;
-    string replyto = 2;
+    int64 timestamp = 1;
+    string ipaddress = 2;
+    string replyto = 3;
 }
 
 message CreateAccountCommand {
@@ -42,13 +47,15 @@ message PassivateAccount {
 
 // Events
 message AccountCreatedEvent {
-    string username = 1;
-    string password = 2;
-    string nickname = 3;
+    string id = 1;
+    string username = 2;
+    string password = 3;
+    string nickname = 4;
 }
 
 message Pinged {
-    string ip = 1;
+    string timestamp = 1;
+    string ip = 2;
 }
 
 // Replies
@@ -61,6 +68,7 @@ message CreateAccountConflictReply {
 }
 
 message Pong {
-    string pong = 1;
-    string entityId = 2;
+    int64 timestamp = 1;
+    string pong = 2;
+    string entityId = 3;
 }

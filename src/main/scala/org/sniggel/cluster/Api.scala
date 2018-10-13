@@ -185,7 +185,7 @@ object Api extends Logging {
     CreateAccountCommand(username, password, nickname, replyTo)
 
   private def ping(ipAddress: Option[InetAddress])
-                  (replyTo: ActorRef[Reply]): Ping = Ping(ipAddress.map(_.toString), replyTo)
+                  (replyTo: ActorRef[Reply]): Ping = Ping(System.currentTimeMillis, ipAddress.map(_.toString), replyTo)
 
   private def state()
                    (replyTo: ActorRef[Reply]): GetStateCommand =

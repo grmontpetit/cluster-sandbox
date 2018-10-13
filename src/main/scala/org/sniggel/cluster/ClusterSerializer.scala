@@ -1,6 +1,7 @@
 package org.sniggel.cluster
 
 import java.io.NotSerializableException
+import java.util.UUID
 
 import akka.actor.ExtendedActorSystem
 import akka.actor.typed.ActorRefResolver
@@ -69,14 +70,21 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     import scala.collection.JavaConverters._
     val accounts: Iterable[protobuf.ClusterSandboxMessages.Account] = state.accounts.map(m => {
       protobuf.ClusterSandboxMessages.Account.newBuilder()
+        .setId(m._2.id.toString)
         .setUsername(m._2.username)
         .setPassword(m._2.password)
         .setNickname(m._2.nickname)
         .build
     })
+    val pings: Iterable[protobuf.ClusterSandboxMessages.PingData] = state.pings.map(p => {
+      protobuf.ClusterSandboxMessages.PingData.newBuilder()
+        .setTimestamp(p.timestamp.toString)
+        .setIp(p.ip)
+        .build
+    })
     protobuf.ClusterSandboxMessages.State.newBuilder()
       .addAllAccounts(accounts.asJava)
-      .addAllPing(state.pings.asJava)
+      .addAllPing(pings.asJava)
       .build
       .toByteArray
   }
@@ -92,6 +100,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   private def pingToBinary(ping: Ping): Array[Byte] = {
     val builder = protobuf.ClusterSandboxMessages.Ping.newBuilder()
     builder
+      .setTimestamp(ping.timestamp)
       .setIpaddress(ping.ipAddress.getOrElse("unknown"))
       .setReplyto(resolver.toSerializationFormat(ping.ReplyTo))
       .build
@@ -112,6 +121,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   private def accountCreatedEventToBinary(event: AccountCreatedEvent): Array[Byte] = {
     val builder = protobuf.ClusterSandboxMessages.AccountCreatedEvent.newBuilder()
     builder
+      .setId(event.id.toString)
       .setUsername(event.username)
       .setPassword(event.password)
       .setNickname(event.nickname)
@@ -122,6 +132,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   private def pingedToBinary(pinged: Pinged): Array[Byte] = {
     val builder = protobuf.ClusterSandboxMessages.Pinged.newBuilder()
     builder
+      .setTimestamp(pinged.timestamp.toString)
       .setIp(pinged.ip)
       .build
       .toByteArray
@@ -130,6 +141,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   private def pongToBinary(pong: Pong): Array[Byte] = {
     val builder = protobuf.ClusterSandboxMessages.Pong.newBuilder()
     builder
+      .setTimestamp(pong.timestamp)
       .setEntityId(pong.entityId)
       .setPong(pong.pong)
       .build
@@ -141,8 +153,8 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     import scala.collection.JavaConverters._
     val a = protobuf.ClusterSandboxMessages.State.parseFrom(bytes)
     val accounts: List[Account] = a.getAccountsList.asScala.toList.map(a =>
-      Account(a.getUsername, a.getPassword, a.getNickname))
-    val pings: List[String] = a.getPingList.asScala.toList
+      Account(UUID.fromString(a.getId), a.getUsername, a.getPassword, a.getNickname))
+    val pings: List[PingData] = a.getPingList.asScala.map(d => PingData(d.getTimestamp.toLong, d.getIp)).toList
     State(accounts.map(a => a.username -> a).toMap, pings)
   }
 
@@ -153,7 +165,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
 
   private def pingFromBinary(bytes: Array[Byte]): Ping = {
     val a = protobuf.ClusterSandboxMessages.Ping.parseFrom(bytes)
-    Ping(Some(a.getIpaddress), resolver.resolveActorRef(a.getReplyto))
+    Ping(a.getTimestamp, Some(a.getIpaddress), resolver.resolveActorRef(a.getReplyto))
   }
 
   private def createAccountFromBinary(bytes: Array[Byte]): CreateAccountCommand = {
@@ -163,16 +175,16 @@ class ClusterSerializer(val system: ExtendedActorSystem)
 
   private def accountCreatedFromBinary(bytes: Array[Byte]): AccountCreatedEvent = {
     val a = protobuf.ClusterSandboxMessages.AccountCreatedEvent.parseFrom(bytes)
-    AccountCreatedEvent(a.getUsername, a.getPassword, a.getNickname)
+    AccountCreatedEvent(UUID.fromString(a.getId), a.getUsername, a.getPassword, a.getNickname)
   }
 
   private def pingedFromBinary(bytes: Array[Byte]): Pinged = {
     val a = protobuf.ClusterSandboxMessages.Pinged.parseFrom(bytes)
-    Pinged(a.getIp)
+    Pinged(a.getTimestamp.toLong, a.getIp)
   }
 
   private def pongFromBinary(bytes: Array[Byte]): Pong = {
     val a = protobuf.ClusterSandboxMessages.Pong.parseFrom(bytes)
-    Pong(a.getPong, a.getEntityId)
+    Pong(a.getTimestamp, a.getPong, a.getEntityId)
   }
 }
