@@ -2,6 +2,8 @@
 
 This is a small proof of concept using Akka Clustering and Docker.
 
+[![Build Status](https://travis-ci.org/sniggel/cluster-sandbox.svg?branch=master)](https://travis-ci.org/sniggel/cluster-sandbox)
+
 ## TLDR
 
 Using Akka Clustering with ClusterBoostrap and AkkaManagement, it is possible to create an Akka cluster by using DNS records.
