@@ -40,11 +40,20 @@ object AccountEntity extends Logging {
 
   // We use the same key as the persistence Id key
   final case class AccountStateReplicationKey(_id: PersistenceId)
-    extends Key[ORMultiMap[Long, Ping]](_id) with ReplicatedDataSerialization
+    extends Key[ORSet[Event]](_id) with ReplicatedDataSerialization
 
   // Data Replication - Data replication should only be used with entities in separate data-centers
   @SerialVersionUID(1L)
   val ReplicatorKey = AccountStateReplicationKey(PersistenceId)
+
+  // Data Replicator events
+  private sealed trait InternalMsg extends Command
+  private final case class InternalUpdateResponse[A <: ReplicatedData](rsp: Replicator.UpdateResponse[A]) extends InternalMsg
+  private final case class InternalGetResponse[A <: ReplicatedData](rsp: Replicator.GetResponse[A]) extends InternalMsg
+
+  private object AccountStateReplication {
+    def empty: ORSet[Event] = ORSet.empty[Event]
+  }
 
   // Commands
   sealed trait Command extends Serializable
@@ -64,7 +73,6 @@ object AccountEntity extends Logging {
                                        username: Username,
                                        password: Password,
                                        nickname: Nickname) extends Event
-                          // circe doesn't support InetAddress or Option TODO add custom json formats
   final case class Pinged(timestamp: Long, ip: IpAddress) extends Event
 
   // Replies
@@ -84,15 +92,6 @@ object AccountEntity extends Logging {
   final case class State(accounts: Map[Username, Account] = Map.empty[Username, Account],
                          pings: List[PingData] = List.empty[PingData]) extends Reply
 
-  // Data Replicator events
-  private sealed trait InternalMsg extends Command
-  private final case class InternalUpdateResponse[A <: ReplicatedData](rsp: Replicator.UpdateResponse[A]) extends InternalMsg
-  private final case class InternalGetResponse[A <: ReplicatedData](rsp: Replicator.GetResponse[A]) extends InternalMsg
-
-  private object AccountStateReplication {
-    def empty: ORMultiMap[Long, Ping] = ORMultiMap.empty[Long, Ping]
-  }
-
   def apply(): String => Behavior[Command] = { id =>
     import akka.actor.typed.scaladsl.adapter._
     logger.info(s"Setting up $id")
@@ -106,9 +105,9 @@ object AccountEntity extends Logging {
       // use message adapters to map the externaStatel messages (replies) to the message types
       // that this actor can handle (see InternalMsg).
       // DData Replicator messages will be sent to this message adapter
-      val updateResponseAdapter: ActorRef[Replicator.UpdateResponse[ORMultiMap[Long, Ping]]] =
+      val updateResponseAdapter: ActorRef[Replicator.UpdateResponse[ORSet[Event]]] =
         context.messageAdapter(InternalUpdateResponse.apply)
-      val getResponseAdapter: ActorRef[Replicator.GetResponse[ORMultiMap[Long, Ping]]] =
+      val getResponseAdapter: ActorRef[Replicator.GetResponse[ORSet[Event]]] =
         context.messageAdapter(InternalGetResponse.apply)
 
       context.system.receptionist ! Receptionist.Register(AccountServiceKey, context.self)
@@ -122,8 +121,8 @@ object AccountEntity extends Logging {
   }
 
   def commandHandler(replicator: ActorRef[Replicator.Command],
-                     updateResponseAdapter: ActorRef[Replicator.UpdateResponse[ORMultiMap[Long, Ping]]],
-                     getResponseAdapter: ActorRef[Replicator.GetResponse[ORMultiMap[Long, Ping]]]): CommandHandler[Command, Event, State] = {
+                     updateResponseAdapter: ActorRef[Replicator.UpdateResponse[ORSet[Event]]],
+                     getResponseAdapter: ActorRef[Replicator.GetResponse[ORSet[Event]]]): CommandHandler[Command, Event, State] = {
     case (state, CreateAccountCommand(username, password, nickname, replyTo)) =>
       logger.info(s"Received a CreateAccountCommand for username: $username")
       // Check state to see if the account already exist
@@ -146,29 +145,29 @@ object AccountEntity extends Logging {
         .andThen(SideEffect[State](_ => replyTo ! Pong(timestamp, "PONG", EntityId)))
     case (state, GetStateCommand(replyTo)) =>
       logger.info(s"Received a GetStateCommand on my entity $EntityId")
-      // We get the state and if it's empty, we populate it with the replicated data.
-      // The Entity *is not* created when data is replicated.
-      replicator ! Replicator.Get(key = ReplicatorKey,
-                                  consistency = Replicator.ReadLocal,
-                                  replyTo = getResponseAdapter,
-                                  request = None)
       Effect
         .none
+        .andThen(SideEffect[State](_ => replicator ! Replicator.Get(key = ReplicatorKey,
+                                                                    consistency = Replicator.ReadLocal,
+                                                                    replyTo = getResponseAdapter,
+                                                                    request = None)))
         .andThen(SideEffect[State](_ => replyTo ! state))
     case (s, PassivateAccount) =>
       logger.info(s"Passivating account state $s")
       Effect.stop
 
-    case (s, internal: InternalMsg) => internal match {
+    case (_, internal: InternalMsg) => internal match {
       case InternalUpdateResponse(_) =>
-        // TODO react on replicated data
-        ???
+        logger.info("Received a InternalUpdateResponse.")
+        Effect.none
       case InternalGetResponse(rsp @ Replicator.GetSuccess(ReplicatorKey, Some(replyTo: ActorRef[Command] @unchecked))) =>
-        // TODO react on replicated data
-        ???
-      case InternalGetResponse(rsp) =>
-        // TODO react on replicated data
-        ???
+        val value: Set[Event] = rsp.get(ReplicatorKey).elements
+        logger.info(s"Received an InternalGetResponse ${value.mkString}")
+        Effect.none
+      case InternalGetResponse(_) =>
+        logger.info("Received an InternalGetResponse.")
+        // not dealing with failures
+        Effect.none
     }
   }
 
@@ -187,8 +186,8 @@ object AccountEntity extends Logging {
   }
 
   def eventHandler(replicator: ActorRef[Replicator.Command],
-                   updateResponseAdapter: ActorRef[Replicator.UpdateResponse[ORMultiMap[Long, Ping]]],
-                   getResponseAdapter: ActorRef[Replicator.GetResponse[ORMultiMap[Long, Ping]]]): (State, Event) => State = {
+                   updateResponseAdapter: ActorRef[Replicator.UpdateResponse[ORSet[Event]]],
+                   getResponseAdapter: ActorRef[Replicator.GetResponse[ORSet[Event]]]): (State, Event) => State = {
     case (State(accounts, pings), AccountCreatedEvent(id, username, password, nickname)) =>
       logger.info(s"Updating current state with new account $username")
       // Append to the Entity State
