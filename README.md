@@ -11,7 +11,7 @@ Once a node is started, it will query the DNS server for A and SRV records for a
 
 ## Project Architecture
 
-This project is running 3 dockers containers, 2 Akka nodes forming a cluster and 1 DNS server running Bind9.
+This project is running 5 dockers containers, 2 Akka nodes forming a cluster, 1 DNS server running Bind9 and 2 cassandra servers used for Akka Persistence.
 
 ![diag1](images/diag1.jpeg)
 
