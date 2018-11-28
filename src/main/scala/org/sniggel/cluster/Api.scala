@@ -6,8 +6,6 @@ import java.nio.charset.StandardCharsets.UTF_8
 import akka.Done
 import akka.actor.CoordinatedShutdown.{PhaseServiceRequestsDone, PhaseServiceUnbind, Reason}
 import akka.actor.typed.ActorRef
-import akka.actor.typed.receptionist.Receptionist
-import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.{ActorSystem, CoordinatedShutdown, Scheduler}
 import akka.cluster.sharding.typed.scaladsl.EntityRef
 import akka.http.scaladsl.Http
@@ -32,8 +30,6 @@ import scala.concurrent.duration.{FiniteDuration, _}
 import scala.util.{Failure, Success}
 
 object Api extends Logging {
-
-  import akka.actor.typed.scaladsl.adapter._
 
   final case class SignUp(username: String, password: String, nickname: String)
 
@@ -169,15 +165,6 @@ object Api extends Logging {
         }
       }
     }
-  }
-
-  def receptionist(context: akka.actor.ActorContext)
-                  (implicit timeout: Timeout,
-                   scheduler: Scheduler): Future[Receptionist.Listing] = {
-    val receptionist = context.system.toTyped.receptionist
-    val receptionistCommand: Receptionist.Command = Receptionist.find(AccountEntity.AccountServiceKey, context.self)
-
-    receptionist ? (_ => receptionistCommand)
   }
 
   private def createAccount(username: String, password: String, nickname: String)

@@ -7,7 +7,6 @@ import akka.cluster.typed.SelfUp
 import akka.management.AkkaManagement
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.persistence.cassandra.testkit.CassandraLauncher
-import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy
 import com.typesafe.config.ConfigFactory
 import org.apache.logging.log4j.core.async.AsyncLoggerContextSelector
 import org.apache.logging.log4j.scala.Logging
@@ -27,7 +26,8 @@ object Main extends Logging {
     logger.info("Starting Actor System.")
     val system: ActorSystem[SelfUp] = ActorSystem(SystemGuardian(), clusterName)
 
-    //startCassandraDatabase()
+    // Not used when running inside docker-compose
+    // startCassandraDatabase()
     AkkaManagement(system.toUntyped).start()
     ClusterBootstrap(system.toUntyped).start()
 
@@ -36,9 +36,6 @@ object Main extends Logging {
 
   private def startCassandraDatabase(): Unit = {
     val databaseDirectory = new File("target/cassandra-db")
-    val roundRobin: DCAwareRoundRobinPolicy = DCAwareRoundRobinPolicy.builder()
-      .withLocalDc(s"dc-${config.getString("akka.cluster.multi-data-center.self-data-center")}")
-      .build()
 
     CassandraLauncher.start(
       databaseDirectory,

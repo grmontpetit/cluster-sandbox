@@ -11,34 +11,65 @@ services:
       app_net:
         ipv4_address: 172.180.0.2
 
-  # Cluster Host 1 - dc-montreal
+  # Cluster Host 1 - dc-montreal - host 1
   host1:
     image: sniggel/cluster-sandbox:latest
     ports:
-      - "9000:9000"
-      - "8558:8558/tcp"
-      - "2552/tcp"
-      - "9042/tcp"
-    dns: 172.180.0.2
-    environment:
-      - JAVA_OPTS=-Dakka.cluster.multi-data-center.self-data-center=montreal -Dcassandra-journal.contact-points.0=172.180.0.5:9042 -Dcassandra-snapshot-store.contact-points.0=172.180.0.5:9042
-    networks:
-        app_net:
-            ipv4_address: 172.180.0.3
-
-  # Cluster Host 2 - dc-quebec
-  host2:
-    image: sniggel/cluster-sandbox:latest
-    ports:
+      - "9000/tcp"
       - "8558/tcp"
       - "2552/tcp"
       - "9042/tcp"
     dns: 172.180.0.2
     environment:
-    - JAVA_OPTS=-Dakka.cluster.multi-data-center.self-data-center=montreal -Dcassandra-journal.contact-points.0=172.180.0.6:9042 -Dcassandra-snapshot-store.contact-points.0=172.180.0.6:9042
+      - JAVA_OPTS=-Dakka.cluster.multi-data-center.self-data-center=montreal -Dcassandra-journal.contact-points.0=172.180.0.7:9042 -Dcassandra-snapshot-store.contact-points.0=172.180.0.7:9042
     networks:
         app_net:
-            ipv4_address: 172.180.0.4
+            ipv4_address: 172.180.0.3
+
+  # Cluster Host 2 - dc-montreal - host 2
+  host2:
+    image: sniggel/cluster-sandbox:latest
+    ports:
+      - "9000/tcp"
+      - "8558/tcp"
+      - "2552/tcp"
+      - "9042/tcp"
+    dns: 172.180.0.2
+    environment:
+    - JAVA_OPTS=-Dakka.cluster.multi-data-center.self-data-center=montreal -Dcassandra-journal.contact-points.0=172.180.0.7:9042 -Dcassandra-snapshot-store.contact-points.0=172.180.0.7:9042
+    networks:
+      app_net:
+        ipv4_address: 172.180.0.4
+
+  # Cluster Host 3 - dc-quebec - host 1
+  host3:
+    image: sniggel/cluster-sandbox:latest
+    ports:
+      - "9000/tcp"
+      - "8558/tcp"
+      - "2552/tcp"
+      - "9042/tcp"
+    dns: 172.180.0.2
+    environment:
+    - JAVA_OPTS=-Dakka.cluster.multi-data-center.self-data-center=quebec -Dcassandra-journal.contact-points.0=172.180.0.8:9042 -Dcassandra-snapshot-store.contact-points.0=172.180.0.8:9042
+    networks:
+        app_net:
+            ipv4_address: 172.180.0.5
+
+  # Cluster Host 4 - dc-quebec - host 2
+  host4:
+    image: sniggel/cluster-sandbox:latest
+    ports:
+      - "9000/tcp"
+      - "8558/tcp"
+      - "2552/tcp"
+      - "9042/tcp"
+    dns: 172.180.0.2
+    environment:
+    - JAVA_OPTS=-Dakka.cluster.multi-data-center.self-data-center=quebec -Dcassandra-journal.contact-points.0=172.180.0.8:9042 -Dcassandra-snapshot-store.contact-points.0=172.180.0.8:9042
+    networks:
+      app_net:
+        ipv4_address: 172.180.0.6
 
   # Cassandra server for dc-montreal
   cassandra-dc-montreal:
@@ -47,7 +78,7 @@ services:
     - "9042"
     networks:
       app_net:
-        ipv4_address: 172.180.0.5
+        ipv4_address: 172.180.0.7
 
   # Cassandra server for dc-quebec
   cassandra-dc-quebec:
@@ -56,7 +87,7 @@ services:
     - "9042:9042"
     networks:
       app_net:
-        ipv4_address: 172.180.0.6
+        ipv4_address: 172.180.0.8
 
 networks:
   app_net:
