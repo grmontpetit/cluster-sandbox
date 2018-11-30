@@ -19,7 +19,7 @@ Part of the cluster, namely the Entity is using Akka-Typed which at the time thi
 
 ## Usage
 
-Simply invoke `docker-compose -f docker-compose.yml up` to start the cluster and wait for the cluster to come up:
+Simply invoke `docker-compose up` to start the cluster and wait for the cluster to come up:
 
 ![Alt Text](images/docker-compose1.gif)
 
