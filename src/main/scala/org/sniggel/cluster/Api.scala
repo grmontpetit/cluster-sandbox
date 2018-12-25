@@ -1,35 +1,31 @@
 package org.sniggel.cluster
 
-import java.net.InetAddress
-import java.nio.charset.StandardCharsets.UTF_8
+import java.net.{InetAddress, InetSocketAddress}
 
-import akka.Done
-import akka.actor.CoordinatedShutdown.{PhaseServiceRequestsDone, PhaseServiceUnbind, Reason}
+import akka.actor.CoordinatedShutdown.Reason
 import akka.actor.typed.ActorRef
-import akka.actor.{ActorSystem, CoordinatedShutdown, Scheduler}
+import akka.actor.{ActorSystem, Scheduler}
 import akka.cluster.sharding.typed.scaladsl.EntityRef
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling
-import akka.http.scaladsl.model.MediaTypes.`text/event-stream`
-import akka.http.scaladsl.model.StatusCodes.{BadRequest, Conflict, Created, OK}
-import akka.http.scaladsl.model.headers.`Last-Event-ID`
-import akka.http.scaladsl.model.sse.ServerSentEvent
-import akka.http.scaladsl.model.{HttpEntity, HttpResponse}
-import akka.http.scaladsl.server.{Directives, Route}
-import akka.pattern.after
-import akka.persistence.query.EventEnvelope
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.persistence.query.scaladsl.EventsByPersistenceIdQuery
 import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
 import akka.util.Timeout
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
+import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import io.circe.generic.auto._
+import io.circe.syntax._
 import org.apache.logging.log4j.scala.Logging
-import org.sniggel.cluster.AccountEntity.{CreateAccountCommand, GetStateCommand, Ping, Reply}
+import org.sniggel.cluster.AccountEntity._
+import pureconfig.loadConfigOrThrow
 
-import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, _}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ExecutionContext, Future}
 
 object Api extends Logging {
+
+  final case class Config(clusterName: String, listenPort: Int, bindHostname: String)
 
   final case class SignUp(username: String, password: String, nickname: String)
 
@@ -38,132 +34,72 @@ object Api extends Logging {
   def apply(accounts: EntityRef[AccountEntity.Command])
            (implicit untypedSystem: ActorSystem,
             mat: Materializer,
-            readJournal: EventsByPersistenceIdQuery): Unit = {
+            readJournal: EventsByPersistenceIdQuery,
+            context: ExecutionContext): Unit = {
 
-    import untypedSystem.dispatcher
+    val config = loadConfigOrThrow[Config]("cluster-sandbox")
 
     implicit val scheduler: Scheduler = untypedSystem.scheduler
-    val shutdown = CoordinatedShutdown(untypedSystem)
-    val requestsDoneAfter: FiniteDuration = 5.seconds
     val askTimeout: FiniteDuration = 5.seconds
-    val eventsMaxIdle: FiniteDuration = 10.seconds
 
-    logger.info(s"Starting Akka Http on port 9000")
+    logger.info(s"Starting Akka Http on port ${config.listenPort}")
     Http()
-      .bindAndHandle(route(askTimeout, eventsMaxIdle, accounts), "0.0.0.0", 9000)
-      .onComplete {
-        case Failure(cause) =>
-          logger.error(s"Failure to start Http server, reason: ${cause.getCause}")
-          CoordinatedShutdown(untypedSystem).run(BindFailure)
-        case Success(binding) =>
-          shutdown.addTask(PhaseServiceUnbind, "api.unbind") { () =>
-            binding.unbind()
-          }
-          shutdown.addTask(PhaseServiceRequestsDone, "api.requests-done") { () =>
-            after(requestsDoneAfter, untypedSystem.scheduler)(Future.successful(Done))
-          }
-      }
+      .bind(interface = config.bindHostname, port = config.listenPort).to(Sink.foreach{ connection =>
+      connection.handleWithAsyncHandler(handler(askTimeout, accounts, connection.remoteAddress))
+    }).run()
   }
 
-  def route(askTimeout: FiniteDuration,
-            eventsMaxIdle: FiniteDuration,
-            accounts: EntityRef[AccountEntity.Command])
-           (implicit scheduler: Scheduler,
-            readJournal: EventsByPersistenceIdQuery): Route = {
-    implicit val timeout: Timeout = askTimeout
-    import Directives._
-    import ErrorAccumulatingCirceSupport._
-    import EventStreamMarshalling._
-    import io.circe.generic.auto._
-    import io.circe.syntax._
+  def handler(askTimeout: FiniteDuration,
+              accounts: EntityRef[AccountEntity.Command],
+              remoteAddress: InetSocketAddress)
+             (implicit mat: Materializer,
+              context: ExecutionContext): HttpRequest => Future[HttpResponse] = {
+    case HttpRequest(HttpMethods.GET, Uri.Path("/api"), _, _, _) => handleApi()
+    case HttpRequest(HttpMethods.POST, Uri.Path("/api/accounts"), _, entity, _) => handleSignUp(askTimeout, accounts, entity)
+    case HttpRequest(HttpMethods.GET, Uri.Path("/api/ping"), _, _, _) => handlePing(askTimeout, accounts, remoteAddress)
+    case HttpRequest(HttpMethods.GET, Uri.Path("/api/state"), _, _, _) => handleState(askTimeout, accounts)
+  }
 
-    pathPrefix("api") {
-      pathEnd {
-        get {
-          complete {
-            OK
-          }
-        }
-      } ~
-      pathPrefix("accounts") {
-        import AccountEntity._
-        pathEnd {
-          post {
-            entity(as[SignUp]) {
-              case SignUp(username, password, nickname) =>
-                onSuccess(accounts ? createAccount(username, password, nickname)) {
-                  case CreateAccountSuccessReply =>
-                    complete(Created)
-                  case CreateAccountConflictReply =>
-                    complete(Conflict)
-                  case _ =>
-                    complete(BadRequest)
-                }
-            }
-          }
-        }
-      }~
-      pathPrefix("ping") {
-        import AccountEntity._
-        pathEnd {
-          get {
-            extractClientIP { ip =>
-              onSuccess(accounts ? ping(ip.toOption)) {
-                case p: Pong =>
-                  complete(p)
-                case _ =>
-                  complete(BadRequest)
-              }
-            }
-          }
-        }
-      }~
-      pathPrefix("state") {
-        import AccountEntity._
-        pathEnd {
-          get {
-            onSuccess(accounts ? state()) {
-              case s: State =>
-                complete(s)
-              case _ =>
-                complete(BadRequest)
-            }
-          }
-        }
-      }~
-      // FIXME stream not working properly
-      pathPrefix("eventstream") {
-        get {
-          optionalHeaderValueByName(`Last-Event-ID`.name) { lastEventId =>
-            try {
-              val fromSeqNo = lastEventId.getOrElse("-1").trim.toLong + 1
-              complete {
-                readJournal
-                  .eventsByPersistenceId(AccountEntity.PersistenceId, fromSeqNo, Long.MaxValue)
-                  .collect {
-                    case EventEnvelope(_, _, seqNo, ac: AccountEntity.AccountCreatedEvent) =>
-                      ServerSentEvent(ac.asJson.noSpaces,
-                                      "account-created",
-                                      seqNo.toString)
-                    case EventEnvelope(_, _, seqNo, p: AccountEntity.Pinged) =>
-                      ServerSentEvent(p.asJson.noSpaces,
-                                      "pinged",
-                                      seqNo.toString)
-                  }.keepAlive(eventsMaxIdle, () => ServerSentEvent.heartbeat)
-              }
-            } catch {
-              case _: NumberFormatException =>
-                complete(
-                  HttpResponse(
-                    BadRequest,
-                    entity = HttpEntity(`text/event-stream`,
-                                        "Last-Event-Id must be numeric!".getBytes(UTF_8))
-                  )
-                )
-            }
-          }
-        }
-      }
+  def handleApi(): Future[HttpResponse] = Future.successful(HttpResponse(status = StatusCodes.OK))
+
+  def handleSignUp(askTimeout: FiniteDuration,
+                   accounts: EntityRef[AccountEntity.Command],
+                   entity: RequestEntity)
+                  (implicit mat: Materializer,
+                   context: ExecutionContext): Future[HttpResponse] = {
+    implicit val timeout: Timeout = askTimeout
+    Unmarshal(entity)
+      .to[SignUp]
+      .flatMap(a => accounts ? createAccount(a.username, a.password, a.nickname))
+      .map(_ => HttpResponse(status = StatusCodes.Created))
+  }
+
+  def handlePing(askTimeout: FiniteDuration,
+                 accounts: EntityRef[AccountEntity.Command],
+                 remoteAddress: InetSocketAddress)
+                (implicit mat: Materializer,
+                 context: ExecutionContext): Future[HttpResponse] = {
+    implicit val timeout: Timeout = askTimeout
+    val ask = accounts ? ping(Some(remoteAddress.getAddress))
+    ask.map{
+      case p: Pong => HttpResponse(status = StatusCodes.OK,
+        entity = HttpEntity(p.asJson.noSpaces)
+          .withContentType(ContentTypes.`application/json`))
+      case _ => HttpResponse(status = StatusCodes.BadRequest)
+    }
+  }
+
+  def handleState(askTimeout: FiniteDuration,
+                  accounts: EntityRef[AccountEntity.Command])
+                 (implicit mat: Materializer,
+                  context: ExecutionContext): Future[HttpResponse] = {
+    implicit val timeout: Timeout = askTimeout
+    val ask = accounts ? state()
+    ask.map {
+      case s: State => HttpResponse(status = StatusCodes.OK,
+        entity = HttpEntity(s.asJson.noSpaces)
+          .withContentType(ContentTypes.`application/json`))
+      case _ => HttpResponse(status = StatusCodes.BadRequest)
     }
   }
 
@@ -172,7 +108,7 @@ object Api extends Logging {
     CreateAccountCommand(username, password, nickname, replyTo)
 
   private def ping(ipAddress: Option[InetAddress])
-                  (replyTo: ActorRef[Reply]): Ping = Ping(System.currentTimeMillis, ipAddress.map(_.toString), replyTo)
+                  (replyTo: ActorRef[Reply]): Ping = Ping(System.currentTimeMillis, ipAddress.map(_.getHostAddress), replyTo)
 
   private def state()
                    (replyTo: ActorRef[Reply]): GetStateCommand =

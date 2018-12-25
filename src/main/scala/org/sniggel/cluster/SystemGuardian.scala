@@ -13,6 +13,8 @@ import akka.stream.Materializer
 import akka.stream.typed.scaladsl.ActorMaterializer
 import org.apache.logging.log4j.scala.Logging
 
+import scala.concurrent.ExecutionContext
+
 object SystemGuardian extends Logging {
 
   import akka.actor.typed.scaladsl.adapter._
@@ -53,6 +55,7 @@ object SystemGuardian extends Logging {
     implicit val readJournal: CassandraReadJournal =
       PersistenceQuery(untypedSystem)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    implicit val context: ExecutionContext = system.dispatcher
     Api(accounts)
   }
 
