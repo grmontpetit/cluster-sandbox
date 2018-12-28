@@ -21,7 +21,7 @@ object AccountEntity extends Logging {
   // Types
   type PersistenceId = String
   type Username = String
-  type Password = String
+  type PasswordHash = String
   type Nickname = String
   type IpAddress = String
   type UserId = UUID
@@ -47,7 +47,7 @@ object AccountEntity extends Logging {
                         ipAddress: Option[IpAddress],
                         ReplyTo: ReplyTo) extends Command
   final case class CreateAccountCommand(username: Username,
-                                        password: Password,
+                                        passwordHash: PasswordHash,
                                         nickname: Nickname,
                                         replyTo: ReplyTo) extends Command
   final case class GetStateCommand(replyTo: ReplyTo) extends Command
@@ -57,7 +57,7 @@ object AccountEntity extends Logging {
   sealed trait Event
   final case class AccountCreatedEvent(id: UserId,
                                        username: Username,
-                                       password: Password,
+                                       passwordHash: PasswordHash,
                                        nickname: Nickname) extends Event
   final case class Pinged(timestamp: Long, ip: IpAddress) extends Event
 
@@ -72,7 +72,7 @@ object AccountEntity extends Logging {
   // State
   final case class Account(id: UUID,
                            username: Username,
-                           password: Password,
+                           passwordHash: PasswordHash,
                            nickname: Nickname)
   final case class PingData(timestamp: Long, ip: IpAddress)
   final case class State(accounts: Map[Username, Account] = Map.empty[Username, Account],
@@ -131,11 +131,11 @@ object AccountEntity extends Logging {
   }
 
   private def persistAndReply(username: Username,
-                              password: Password,
+                              passwordHash: PasswordHash,
                               nickname: Nickname,
                               replyTo: ReplyTo): Effect[Event, State] = {
     val id = UUID.randomUUID
-    val accountCreatedEvent = AccountCreatedEvent(id, username, password, nickname)
+    val accountCreatedEvent = AccountCreatedEvent(id, username, passwordHash, nickname)
     logger.info(s"Persisting event $accountCreatedEvent, replyTo: ${replyTo.path}")
     Effect
       // Persist the event
