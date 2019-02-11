@@ -77,7 +77,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
       protobuf.ClusterSandboxMessages.Account.newBuilder()
         .setId(m._2.id.toString)
         .setUsername(m._2.username)
-        .setPassword(m._2.passwordHash)
+        .setPassword(m._2.password)
         .setNickname(m._2.nickname)
         .build
     })
@@ -116,7 +116,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     val builder = protobuf.ClusterSandboxMessages.CreateAccountCommand.newBuilder()
     builder
       .setUsername(command.username)
-      .setPassword(command.passwordHash)
+      .setPassword(command.password)
       .setNickname(command.nickname)
       .setReplyTo(resolver.toSerializationFormat(command.replyTo))
       .build
@@ -128,7 +128,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     builder
       .setId(event.id.toString)
       .setUsername(event.username)
-      .setPassword(event.passwordHash)
+      .setPassword(event.password)
       .setNickname(event.nickname)
       .build
       .toByteArray

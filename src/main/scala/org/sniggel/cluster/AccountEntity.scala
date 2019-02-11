@@ -15,6 +15,10 @@ import akka.persistence.typed.SideEffect
 import akka.persistence.typed.scaladsl.PersistentBehaviors.CommandHandler
 import akka.persistence.typed.scaladsl.{Effect, PersistentBehaviors}
 import org.apache.logging.log4j.scala.Logging
+import pureconfig.loadConfigOrThrow
+
+import scala.concurrent.duration.FiniteDuration
+import scala.util.matching.Regex
 
 object AccountEntity extends Logging {
 
