@@ -2,9 +2,9 @@ package org.sniggel.cluster
 
 import akka.actor.CoordinatedShutdown
 import akka.actor.CoordinatedShutdown.ClusterDowningReason
-import akka.actor.typed.{ActorRef, Behavior, Terminated}
+import akka.actor.typed.{ActorRef, Behavior, Props, Terminated}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.cluster.typed.{Cluster, SelfUp, Subscribe}
+import akka.cluster.typed._
 import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardingEnvelope}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityRef, ShardedEntity}
 import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
@@ -56,7 +56,13 @@ object SystemGuardian extends Logging {
       PersistenceQuery(untypedSystem)
         .readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
     implicit val context: ExecutionContext = system.dispatcher
-    Api(accounts)
+    val authenticator = ClusterSingleton(system.toTyped)
+      .spawn(Authenticator(),
+        "authenticator",
+        Props.empty,
+        ClusterSingletonSettings(system.toTyped),
+        Authenticator.Stop)
+    Api(accounts, authenticator)
   }
 
   private def accountEntityShard(sharding: ClusterSharding,

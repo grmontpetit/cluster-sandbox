@@ -15,8 +15,21 @@ import akka.persistence.typed.SideEffect
 import akka.persistence.typed.scaladsl.PersistentBehaviors.CommandHandler
 import akka.persistence.typed.scaladsl.{Effect, PersistentBehaviors}
 import org.apache.logging.log4j.scala.Logging
+import pureconfig.loadConfigOrThrow
+
+import scala.concurrent.duration.FiniteDuration
+import scala.util.matching.Regex
 
 object AccountEntity extends Logging {
+
+  // Config
+  final case class Config(clusterName: String,
+                          listenPort: Int,
+                          bindHostname: String,
+                          askTimeout: FiniteDuration,
+                          usernameRegex: Regex,
+                          passwordRegex: Regex)
+  val config: Config = loadConfigOrThrow[Config]("cluster-sandbox")
 
   // Types
   type PersistenceId = String
@@ -63,8 +76,11 @@ object AccountEntity extends Logging {
 
   // Replies
   sealed trait Reply
-  final case object CreateAccountSuccessReply extends Reply
-  final case object CreateAccountConflictReply extends Reply
+  final case class UsernameInvalid(timestamp: Long) extends Reply
+  final case class PasswordInvalid(timestamp: Long) extends Reply
+  final case class UsernameTaken(timestamp: Long)   extends Reply
+  final case class CreateAccountSuccessReply(timestamp: Long) extends Reply
+  final case class CreateAccountConflictReply(timestamp: Long) extends Reply
   final case class Pong(timestamp: Long,
                         pong: String = "PONG",
                         entityId: EntityId) extends Reply
@@ -101,13 +117,24 @@ object AccountEntity extends Logging {
   def commandHandler: CommandHandler[Command, Event, State] = {
     case (state, CreateAccountCommand(username, password, nickname, replyTo)) =>
       logger.info(s"Received a CreateAccountCommand for username: $username")
-      // Check state to see if the account already exist
-      state.accounts.get(username)
-        .fold(persistAndReply(username, password, nickname, replyTo)) { _ =>
-          Effect
-            .none
-            .andThen(SideEffect[State](_ => replyTo ! CreateAccountConflictReply))
-        }
+      if (!config.usernameRegex.pattern.matcher(username).matches) {
+        replyTo ! UsernameInvalid(System.currentTimeMillis())
+        Effect.none
+      } else if (!config.passwordRegex.pattern.matcher(password).matches) {
+        replyTo ! PasswordInvalid(System.currentTimeMillis())
+        Effect.none
+      } else if (state.accounts.get(username).isDefined) {
+        replyTo ! UsernameTaken(System.currentTimeMillis())
+        Effect.none
+      } else {
+        // Check state to see if the account already exist
+        state.accounts.get(username)
+          .fold(persistAndReply(username, password, nickname, replyTo)) { _ =>
+            Effect
+              .none
+              .andThen(SideEffect[State](_ => replyTo ! CreateAccountConflictReply(System.currentTimeMillis())))
+          }
+      }
     case (_, Ping(timestamp, ipAddress, replyTo)) =>
       logger.info(s"Received a Ping command on my entity: $EntityId")
       val pingedEvent = Pinged(timestamp, ipAddress.getOrElse(InetAddress.getLoopbackAddress).toString)
@@ -135,13 +162,12 @@ object AccountEntity extends Logging {
                               nickname: Nickname,
                               replyTo: ReplyTo): Effect[Event, State] = {
     val id = UUID.randomUUID
-    val accountCreatedEvent = AccountCreatedEvent(id, username, password, nickname)
-    logger.info(s"Persisting event $accountCreatedEvent, replyTo: ${replyTo.path}")
+    val accountCreatedEvent = AccountCreatedEvent(id, username, Passwords.createHash(password), nickname)
     Effect
       // Persist the event
       .persist(accountCreatedEvent)
       // Reply to the Actor that sent the command
-      .andThen(SideEffect[State](_ => replyTo ! CreateAccountSuccessReply))
+      .andThen(SideEffect[State](_ => replyTo ! CreateAccountSuccessReply(System.currentTimeMillis())))
   }
 
   def eventHandler: (State, Event) => State = {

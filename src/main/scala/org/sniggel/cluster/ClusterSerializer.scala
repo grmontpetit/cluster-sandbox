@@ -22,6 +22,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   private final val AccountCreatedEventManifest = "bb"
   private final val PingedManifest = "bc"
   private final val PongManifest = "ca"
+  private final val CreateAccountSuccessReplyManifest = "cb"
 
   override def manifest(msg: AnyRef): String = msg match {
     case _: State => StateManifest
@@ -31,6 +32,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     case _: AccountCreatedEvent=> AccountCreatedEventManifest
     case _: Pinged => PingedManifest
     case _: Pong => PongManifest
+    case _: CreateAccountSuccessReply => CreateAccountSuccessReplyManifest
     case _ =>
       throw new IllegalArgumentException(s"Can't serialize object of type ${msg.getClass} in [${getClass.getName}]")
   }
@@ -50,6 +52,8 @@ class ClusterSerializer(val system: ExtendedActorSystem)
       pingedToBinary(a)
     case a: Pong =>
       pongToBinary(a)
+    case a: CreateAccountSuccessReply =>
+      createAccountSuccessReplyToBinary(a)
   }
 
   override def fromBinary(bytes: Array[Byte], manifest: String): AnyRef = manifest match {
@@ -60,6 +64,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     case AccountCreatedEventManifest => accountCreatedFromBinary(bytes)
     case PingedManifest => pingedFromBinary(bytes)
     case PongManifest => pongFromBinary(bytes)
+    case CreateAccountSuccessReplyManifest => createAccountSuccessReplyFromBinary(bytes)
     case _ =>
       throw new NotSerializableException(
         s"Unimplemented deserialization of message with manifest [$manifest] in [${getClass.getName}]")
@@ -148,6 +153,14 @@ class ClusterSerializer(val system: ExtendedActorSystem)
       .toByteArray
   }
 
+  private def createAccountSuccessReplyToBinary(reply: CreateAccountSuccessReply): Array[Byte] = {
+    val builder = protobuf.ClusterSandboxMessages.Pong.newBuilder()
+    builder
+      .setTimestamp(reply.timestamp)
+      .build
+      .toByteArray
+  }
+
   // from binary
   private def accountStateFromBinary(bytes: Array[Byte]): State = {
     import scala.collection.JavaConverters._
@@ -186,5 +199,10 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   private def pongFromBinary(bytes: Array[Byte]): Pong = {
     val a = protobuf.ClusterSandboxMessages.Pong.parseFrom(bytes)
     Pong(a.getTimestamp, a.getPong, a.getEntityId)
+  }
+  // createAccountSuccessReplyFromBinary
+  private def createAccountSuccessReplyFromBinary(bytes: Array[Byte]): CreateAccountSuccessReply = {
+    val a = protobuf.ClusterSandboxMessages.CreateAccountSuccessReply.parseFrom(bytes)
+    CreateAccountSuccessReply(a.getTimestamp)
   }
 }

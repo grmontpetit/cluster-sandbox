@@ -6,7 +6,7 @@ option optimize_for = SPEED;
 
 package org.sniggel.cluster.messages;
 
-// State
+// Account Entity State
 message Account {
     string id = 1;
     string username = 2;
@@ -23,7 +23,7 @@ message State {
     repeated PingData ping = 2;
 }
 
-// Commands
+// Account Entity Commands
 message Ping {
     int64 timestamp = 1;
     string ipaddress = 2;
@@ -45,6 +45,25 @@ message PassivateAccount {
     int64 timestamp = 1;
 }
 
+// Authenticator Commands
+message AddCredentials {
+    int32 seqNo = 1;
+    string id = 2;
+    string username = 3;
+    string password = 4;
+    string replyTo = 5;
+}
+
+message Authenticate {
+    string username = 1;
+    string password = 2;
+    string replyTo = 3;
+}
+
+message HandleProjectionComplete {}
+
+message Stop {}
+
 // Events
 message AccountCreatedEvent {
     string id = 1;
@@ -58,7 +77,7 @@ message Pinged {
     string ip = 2;
 }
 
-// Replies
+// Account Entity Replies
 message CreateAccountSuccessReply {
     int64 timestamp = 1;
 }
@@ -71,4 +90,23 @@ message Pong {
     int64 timestamp = 1;
     string pong = 2;
     string entityId = 3;
+}
+
+message UsernameInvalid {
+    int64 timestamp = 1;
+}
+message PasswordInvalid {
+    int64 timestamp = 1;
+}
+message UsernameTaken {
+    int64 timestamp = 1;
+}
+
+// Authenticator Replies
+message InvalidCredentials {
+    int64 timestamp = 1;
+}
+
+message Authenticated{
+    string username = 1;
 }
