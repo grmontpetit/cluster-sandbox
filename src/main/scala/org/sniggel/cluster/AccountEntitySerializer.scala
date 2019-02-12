@@ -40,9 +40,11 @@ class AccountEntitySerializer(val system: ExtendedActorSystem)
     case _: Ping => PingManifest
     case _: CreateAccountCommand => CreateAccountCommandManifest
     case _: GetStateCommand => GetStateCommandManifest
+
     // Events
     case _: AccountCreatedEvent=> AccountCreatedEventManifest
     case _: Pinged => PingedManifest
+
     // Replies
     case _: UsernameInvalid => UserNameInvalidManifest
     case _: PasswordInvalid => PasswordInvalidManifest
@@ -50,6 +52,7 @@ class AccountEntitySerializer(val system: ExtendedActorSystem)
     case _: CreateAccountSuccessReply => CreateAccountSuccessReplyManifest
     case _: CreateAccountConflictReply => CreateAccountConflictReplyManifest
     case _: Pong => PongManifest
+
     // State
     case _: State => StateManifest
     case _ =>
@@ -58,37 +61,48 @@ class AccountEntitySerializer(val system: ExtendedActorSystem)
 
   override def toBinary(msg: AnyRef): Array[Byte] = msg match {
     // Commands
-    case a: State =>
-      accountStateToBinary(a)
-    case a: GetStateCommand =>
-      getStateCommandToBinary(a)
-    case a: Ping =>
-      pingToBinary(a)
-    case a: CreateAccountCommand =>
-      createAccountCommandToBinary(a)
-    case a : AccountCreatedEvent=>
-      accountCreatedEventToBinary(a)
-    case a : Pinged =>
-      pingedToBinary(a)
-    case a: Pong =>
-      pongToBinary(a)
-    case a: CreateAccountSuccessReply =>
-      createAccountSuccessReplyToBinary(a)
-    // Authenticator
+    case a: Ping => pingToBinary(a)
+    case a: CreateAccountCommand => createAccountCommandToBinary(a)
+    case a: GetStateCommand => getStateCommandToBinary(a)
 
+    // Events
+    case a : AccountCreatedEvent => accountCreatedEventToBinary(a)
+    case a : Pinged => pingedToBinary(a)
+
+    // Replies
+    case a: UsernameInvalid => ???
+    case a: PasswordInvalid => ???
+    case a: UsernameTaken => ???
+    case a: CreateAccountSuccessReply => createAccountSuccessReplyToBinary(a)
+    case a: CreateAccountConflictReply => ???
+    case a: Pong => pongToBinary(a)
+
+    // State
+    case a: State => accountStateToBinary(a)
   }
 
   override def fromBinary(bytes: Array[Byte], manifest: String): AnyRef = manifest match {
-    // AccountEntity
-    case StateManifest => accountStateFromBinary(bytes)
-    case GetStateCommandManifest => getStateCommandFromBinary(bytes)
+
+    // Commands
     case PingManifest => pingFromBinary(bytes)
     case CreateAccountCommandManifest => createAccountFromBinary(bytes)
+    case GetStateCommandManifest => getStateCommandFromBinary(bytes)
+
+    // Events
     case AccountCreatedEventManifest => accountCreatedFromBinary(bytes)
     case PingedManifest => pingedFromBinary(bytes)
-    case PongManifest => pongFromBinary(bytes)
+
+    // Replies
+    case  UserNameInvalidManifest => ???
+    case PasswordInvalidManifest => ???
+    case UsernameTakenManifest => ???
     case CreateAccountSuccessReplyManifest => createAccountSuccessReplyFromBinary(bytes)
-    // Authenticator
+    case CreateAccountConflictReplyManifest => ???
+    case PongManifest => pongFromBinary(bytes)
+
+    // State
+    case StateManifest => accountStateFromBinary(bytes)
+
     case _ =>
       throw new NotSerializableException(
         s"Unimplemented deserialization of message with manifest [$manifest] in [${getClass.getName}]")

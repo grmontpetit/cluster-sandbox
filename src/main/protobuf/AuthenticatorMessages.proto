@@ -20,10 +20,6 @@ message Authenticate {
     string replyTo = 3;
 }
 
-message HandleProjectionComplete {
-    int64 timestamp = 1;
-}
-
 // Events //
 
 // Replies //
