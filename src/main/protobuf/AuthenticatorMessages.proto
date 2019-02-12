@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+option java_package = "org.sniggel.cluster.protobuf";
+option optimize_for = SPEED;
+
+package org.sniggel.cluster.messages;
+
+// Commands //
+message AddCredentials {
+    int32 seqNo = 1;
+    string id = 2;
+    string username = 3;
+    string password = 4;
+    string replyTo = 5;
+}
+
+message Authenticate {
+    string username = 1;
+    string password = 2;
+    string replyTo = 3;
+}
+
+message HandleProjectionComplete {
+    int64 timestamp = 1;
+}
+
+// Events //
+
+// Replies //
+message InvalidCredentials {
+    int64 timestamp = 1;
+}
+
+message Authenticated {
+    string username = 1;
+}
+
+// State //

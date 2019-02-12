@@ -8,36 +8,56 @@ import akka.actor.typed.ActorRefResolver
 import akka.serialization.{BaseSerializer, SerializerWithStringManifest}
 import org.sniggel.cluster.AccountEntity._
 
-class ClusterSerializer(val system: ExtendedActorSystem)
+class AccountEntitySerializer(val system: ExtendedActorSystem)
   extends SerializerWithStringManifest with BaseSerializer {
 
   import akka.actor.typed.scaladsl.adapter._
 
   private final val resolver = ActorRefResolver(system.toTyped)
 
-  private final val StateManifest = "aa"
-  private final val GetStateCommandManifest = "ab"
+  // Commands
   private final val PingManifest = "ac"
   private final val CreateAccountCommandManifest = "ba"
+  private final val GetStateCommandManifest = "ab"
+
+  // Events
   private final val AccountCreatedEventManifest = "bb"
   private final val PingedManifest = "bc"
+
+  // Replies
+  private final val UserNameInvalidManifest = "da"
+  private final val PasswordInvalidManifest = "db"
+  private final val UsernameTakenManifest = "dc"
+  private final val CreateAccountSuccessReplyManifest = "dd"
+  private final val CreateAccountConflictReplyManifest = "de"
   private final val PongManifest = "ca"
-  private final val CreateAccountSuccessReplyManifest = "cb"
+
+  // State
+  private final val StateManifest = "aa"
 
   override def manifest(msg: AnyRef): String = msg match {
-    case _: State => StateManifest
-    case _: GetStateCommand => GetStateCommandManifest
+    // Commands
     case _: Ping => PingManifest
     case _: CreateAccountCommand => CreateAccountCommandManifest
+    case _: GetStateCommand => GetStateCommandManifest
+    // Events
     case _: AccountCreatedEvent=> AccountCreatedEventManifest
     case _: Pinged => PingedManifest
-    case _: Pong => PongManifest
+    // Replies
+    case _: UsernameInvalid => UserNameInvalidManifest
+    case _: PasswordInvalid => PasswordInvalidManifest
+    case _: UsernameTaken => UsernameTakenManifest
     case _: CreateAccountSuccessReply => CreateAccountSuccessReplyManifest
+    case _: CreateAccountConflictReply => CreateAccountConflictReplyManifest
+    case _: Pong => PongManifest
+    // State
+    case _: State => StateManifest
     case _ =>
       throw new IllegalArgumentException(s"Can't serialize object of type ${msg.getClass} in [${getClass.getName}]")
   }
 
   override def toBinary(msg: AnyRef): Array[Byte] = msg match {
+    // Commands
     case a: State =>
       accountStateToBinary(a)
     case a: GetStateCommand =>
@@ -54,9 +74,12 @@ class ClusterSerializer(val system: ExtendedActorSystem)
       pongToBinary(a)
     case a: CreateAccountSuccessReply =>
       createAccountSuccessReplyToBinary(a)
+    // Authenticator
+
   }
 
   override def fromBinary(bytes: Array[Byte], manifest: String): AnyRef = manifest match {
+    // AccountEntity
     case StateManifest => accountStateFromBinary(bytes)
     case GetStateCommandManifest => getStateCommandFromBinary(bytes)
     case PingManifest => pingFromBinary(bytes)
@@ -65,6 +88,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
     case PingedManifest => pingedFromBinary(bytes)
     case PongManifest => pongFromBinary(bytes)
     case CreateAccountSuccessReplyManifest => createAccountSuccessReplyFromBinary(bytes)
+    // Authenticator
     case _ =>
       throw new NotSerializableException(
         s"Unimplemented deserialization of message with manifest [$manifest] in [${getClass.getName}]")
@@ -73,21 +97,21 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   // to binary
   private def accountStateToBinary(state: State): Array[Byte] = {
     import scala.collection.JavaConverters._
-    val accounts: Iterable[protobuf.ClusterSandboxMessages.Account] = state.accounts.map(m => {
-      protobuf.ClusterSandboxMessages.Account.newBuilder()
+    val accounts: Iterable[protobuf.AccountEntityMessages.Account] = state.accounts.map(m => {
+      protobuf.AccountEntityMessages.Account.newBuilder()
         .setId(m._2.id.toString)
         .setUsername(m._2.username)
         .setPassword(m._2.password)
         .setNickname(m._2.nickname)
         .build
     })
-    val pings: Iterable[protobuf.ClusterSandboxMessages.PingData] = state.pings.map(p => {
-      protobuf.ClusterSandboxMessages.PingData.newBuilder()
+    val pings: Iterable[protobuf.AccountEntityMessages.PingData] = state.pings.map(p => {
+      protobuf.AccountEntityMessages.PingData.newBuilder()
         .setTimestamp(p.timestamp.toString)
         .setIp(p.ip)
         .build
     })
-    protobuf.ClusterSandboxMessages.State.newBuilder()
+    protobuf.AccountEntityMessages.State.newBuilder()
       .addAllAccounts(accounts.asJava)
       .addAllPing(pings.asJava)
       .build
@@ -95,7 +119,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def getStateCommandToBinary(state: GetStateCommand): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.GetStateCommand.newBuilder()
+    val builder = protobuf.AccountEntityMessages.GetStateCommand.newBuilder()
     builder
       .setReplyTo(resolver.toSerializationFormat(state.replyTo))
       .build
@@ -103,7 +127,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def pingToBinary(ping: Ping): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.Ping.newBuilder()
+    val builder = protobuf.AccountEntityMessages.Ping.newBuilder()
     builder
       .setTimestamp(ping.timestamp)
       .setIpaddress(ping.ipAddress.getOrElse("unknown"))
@@ -113,7 +137,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def createAccountCommandToBinary(command: CreateAccountCommand): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.CreateAccountCommand.newBuilder()
+    val builder = protobuf.AccountEntityMessages.CreateAccountCommand.newBuilder()
     builder
       .setUsername(command.username)
       .setPassword(command.password)
@@ -124,7 +148,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def accountCreatedEventToBinary(event: AccountCreatedEvent): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.AccountCreatedEvent.newBuilder()
+    val builder = protobuf.AccountEntityMessages.AccountCreatedEvent.newBuilder()
     builder
       .setId(event.id.toString)
       .setUsername(event.username)
@@ -135,7 +159,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def pingedToBinary(pinged: Pinged): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.Pinged.newBuilder()
+    val builder = protobuf.AccountEntityMessages.Pinged.newBuilder()
     builder
       .setTimestamp(pinged.timestamp.toString)
       .setIp(pinged.ip)
@@ -144,7 +168,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def pongToBinary(pong: Pong): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.Pong.newBuilder()
+    val builder = protobuf.AccountEntityMessages.Pong.newBuilder()
     builder
       .setTimestamp(pong.timestamp)
       .setEntityId(pong.entityId)
@@ -154,7 +178,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def createAccountSuccessReplyToBinary(reply: CreateAccountSuccessReply): Array[Byte] = {
-    val builder = protobuf.ClusterSandboxMessages.Pong.newBuilder()
+    val builder = protobuf.AccountEntityMessages.Pong.newBuilder()
     builder
       .setTimestamp(reply.timestamp)
       .build
@@ -164,7 +188,7 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   // from binary
   private def accountStateFromBinary(bytes: Array[Byte]): State = {
     import scala.collection.JavaConverters._
-    val a = protobuf.ClusterSandboxMessages.State.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.State.parseFrom(bytes)
     val accounts: List[Account] = a.getAccountsList.asScala.toList.map(a =>
       Account(UUID.fromString(a.getId), a.getUsername, a.getPassword, a.getNickname))
     val pings: List[PingData] = a.getPingList.asScala.map(d => PingData(d.getTimestamp.toLong, d.getIp)).toList
@@ -172,37 +196,37 @@ class ClusterSerializer(val system: ExtendedActorSystem)
   }
 
   private def getStateCommandFromBinary(bytes: Array[Byte]): GetStateCommand = {
-    val a = protobuf.ClusterSandboxMessages.GetStateCommand.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.GetStateCommand.parseFrom(bytes)
     GetStateCommand(resolver.resolveActorRef(a.getReplyTo))
   }
 
   private def pingFromBinary(bytes: Array[Byte]): Ping = {
-    val a = protobuf.ClusterSandboxMessages.Ping.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.Ping.parseFrom(bytes)
     Ping(a.getTimestamp, Some(a.getIpaddress), resolver.resolveActorRef(a.getReplyto))
   }
 
   private def createAccountFromBinary(bytes: Array[Byte]): CreateAccountCommand = {
-    val a = protobuf.ClusterSandboxMessages.CreateAccountCommand.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.CreateAccountCommand.parseFrom(bytes)
     CreateAccountCommand(a.getUsername, a.getPassword, a.getNickname, resolver.resolveActorRef(a.getReplyTo))
   }
 
   private def accountCreatedFromBinary(bytes: Array[Byte]): AccountCreatedEvent = {
-    val a = protobuf.ClusterSandboxMessages.AccountCreatedEvent.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.AccountCreatedEvent.parseFrom(bytes)
     AccountCreatedEvent(UUID.fromString(a.getId), a.getUsername, a.getPassword, a.getNickname)
   }
 
   private def pingedFromBinary(bytes: Array[Byte]): Pinged = {
-    val a = protobuf.ClusterSandboxMessages.Pinged.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.Pinged.parseFrom(bytes)
     Pinged(a.getTimestamp.toLong, a.getIp)
   }
 
   private def pongFromBinary(bytes: Array[Byte]): Pong = {
-    val a = protobuf.ClusterSandboxMessages.Pong.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.Pong.parseFrom(bytes)
     Pong(a.getTimestamp, a.getPong, a.getEntityId)
   }
   // createAccountSuccessReplyFromBinary
   private def createAccountSuccessReplyFromBinary(bytes: Array[Byte]): CreateAccountSuccessReply = {
-    val a = protobuf.ClusterSandboxMessages.CreateAccountSuccessReply.parseFrom(bytes)
+    val a = protobuf.AccountEntityMessages.CreateAccountSuccessReply.parseFrom(bytes)
     CreateAccountSuccessReply(a.getTimestamp)
   }
 }

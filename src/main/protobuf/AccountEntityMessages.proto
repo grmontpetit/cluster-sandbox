@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+option java_package = "org.sniggel.cluster.protobuf";
+option optimize_for = SPEED;
+
+package org.sniggel.cluster.messages;
+
+// Commands //
+message Ping {
+    int64 timestamp = 1;
+    string ipaddress = 2;
+    string replyto = 3;
+}
+
+message CreateAccountCommand {
+    string username = 1;
+    string password = 2;
+    string nickname = 3;
+    string replyTo = 4;
+}
+
+message GetStateCommand {
+    string replyTo = 1;
+}
+
+// Events //
+message AccountCreatedEvent {
+    string id = 1;
+    string username = 2;
+    string password = 3;
+    string nickname = 4;
+}
+
+message Pinged {
+    string timestamp = 1;
+    string ip = 2;
+}
+
+// Replies //
+message UsernameInvalid {
+    int64 timestamp = 1;
+}
+
+message PasswordInvalid {
+    int64 timestamp = 1;
+}
+
+message UsernameTaken {
+    int64 timestamp = 1;
+}
+
+message CreateAccountSuccessReply {
+    int64 timestamp = 1;
+}
+
+message CreateAccountConflictReply {
+    int64 timestamp = 1;
+}
+
+message Pong {
+    int64 timestamp = 1;
+    string pong = 2;
+    string entityId = 3;
+}
+
+// State //
+message Account {
+    string id = 1;
+    string username = 2;
+    string password = 3;
+    string nickname = 4;
+}
+
+message PingData {
+    string timestamp = 1;
+    string ip = 2;
+}
+message State {
+    repeated Account accounts = 1;
+    repeated PingData ping = 2;
+}
+

@@ -42,7 +42,7 @@ object Authenticator extends Logging {
   final case class Authenticate(username: String,
                                 password: String,
                                 replyTo: ActorRef[Reply]) extends Command
-  private final case object HandleProjectionComplete extends Command
+  private final case class HandleProjectionComplete(timestamp: Long) extends Command
   final case object Stop extends Command
 
   // Replies
@@ -83,7 +83,7 @@ object Authenticator extends Logging {
         replyTo ! Done
         Authenticator(seqNo, credentials + (username -> passwordHash), askTimeout)
 
-      case (context, HandleProjectionComplete) =>
+      case (context, HandleProjectionComplete(_)) =>
         runProjection(lastSeqNo, context.self, askTimeout)
         Behaviors.same
       case (_, Stop) =>
@@ -110,7 +110,7 @@ object Authenticator extends Logging {
       .mapAsync(1)(authenticator ? _)
       .runWith(Sink.onComplete { cause =>
         logger.warn(s"Projection of Accounts events completed unexpectedly: $cause")
-        authenticator ! HandleProjectionComplete
+        authenticator ! HandleProjectionComplete(System.currentTimeMillis())
       })
   }
 
