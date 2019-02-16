@@ -61,7 +61,7 @@ object SystemGuardian extends Logging {
         "authenticator",
         Props.empty,
         ClusterSingletonSettings(system.toTyped),
-        Authenticator.Stop)
+        Authenticator.StopAuthenticator)
     Api(accounts, authenticator)
   }
 

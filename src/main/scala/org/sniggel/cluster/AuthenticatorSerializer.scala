@@ -6,7 +6,7 @@ import java.util.UUID
 import akka.actor.ExtendedActorSystem
 import akka.actor.typed.ActorRefResolver
 import akka.serialization.{BaseSerializer, SerializerWithStringManifest}
-import org.sniggel.cluster.Authenticator.{AddCredentials, Authenticate, Authenticated, InvalidCredentials}
+import org.sniggel.cluster.Authenticator._
 
 class AuthenticatorSerializer(val system: ExtendedActorSystem)
   extends SerializerWithStringManifest with BaseSerializer {

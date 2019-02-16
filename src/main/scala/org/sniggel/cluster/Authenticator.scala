@@ -43,7 +43,7 @@ object Authenticator extends Logging {
                                 password: String,
                                 replyTo: ActorRef[Reply]) extends Command
   private final case class HandleProjectionComplete(timestamp: Long) extends Command
-  final case object Stop extends Command
+  final case object StopAuthenticator extends Command
 
   // Replies
   sealed trait Reply
@@ -86,7 +86,7 @@ object Authenticator extends Logging {
       case (context, HandleProjectionComplete(_)) =>
         runProjection(lastSeqNo, context.self, askTimeout)
         Behaviors.same
-      case (_, Stop) =>
+      case (_, StopAuthenticator) =>
         Behaviors.stopped
     }
 
