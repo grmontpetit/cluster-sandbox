@@ -68,7 +68,7 @@ class AuthenticatorSerializer(val system: ExtendedActorSystem)
 
     // Replies
     case InvalidCredentialsManifest => invalidCredentialsFromBinary(bytes)
-    case AuthenticatedManifest => authenticateFromBinary(bytes)
+    case AuthenticatedManifest => authenticatedFromBinary(bytes)
 
     // State
 
