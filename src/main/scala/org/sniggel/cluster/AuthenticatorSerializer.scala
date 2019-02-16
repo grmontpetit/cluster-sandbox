@@ -1,6 +1,7 @@
 package org.sniggel.cluster
 
 import java.io.NotSerializableException
+import java.util.UUID
 
 import akka.actor.ExtendedActorSystem
 import akka.actor.typed.ActorRefResolver
@@ -60,14 +61,14 @@ class AuthenticatorSerializer(val system: ExtendedActorSystem)
 
   override def fromBinary(bytes: Array[Byte], manifest: String): AnyRef = manifest match {
     // Commands
-    case AddCredentialsManifest => ???
-    case AuthenticateManifest => ???
+    case AddCredentialsManifest => addCredentialsFromBinary(bytes)
+    case AuthenticateManifest => authenticateFromBinary(bytes)
 
     // Events
 
     // Replies
-    case InvalidCredentialsManifest => ???
-    case AuthenticatedManifest => ???
+    case InvalidCredentialsManifest => invalidCredentialsFromBinary(bytes)
+    case AuthenticatedManifest => authenticateFromBinary(bytes)
 
     // State
 
@@ -123,10 +124,28 @@ class AuthenticatorSerializer(val system: ExtendedActorSystem)
 
   /** from binary **/
   // Commands
+  private def addCredentialsFromBinary(bytes: Array[Byte]): AddCredentials = {
+    val a = protobuf.AuthenticatorMessages.AddCredentials.parseFrom(bytes)
+    AddCredentials(a.getSeqNo, UUID.fromString(a.getId), a.getUsername, a.getPassword, resolver.resolveActorRef(a.getReplyTo))
+  }
+
+  private def authenticateFromBinary(bytes: Array[Byte]): Authenticate = {
+    val a = protobuf.AuthenticatorMessages.Authenticate.parseFrom(bytes)
+    Authenticate(a.getUsername, a.getPassword, resolver.resolveActorRef(a.getReplyTo))
+  }
 
   // Events
 
   // Replies
+  private def invalidCredentialsFromBinary(bytes: Array[Byte]): InvalidCredentials = {
+    val a = protobuf.AuthenticatorMessages.InvalidCredentials.parseFrom(bytes)
+    InvalidCredentials(a.getTimestamp)
+  }
+
+  private def authenticatedFromBinary(bytes: Array[Byte]): Authenticated = {
+    val a = protobuf.AuthenticatorMessages.Authenticate.parseFrom(bytes)
+    Authenticated(a.getUsername)
+  }
 
   // State
 
