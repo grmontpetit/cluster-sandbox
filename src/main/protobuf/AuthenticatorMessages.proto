@@ -7,7 +7,7 @@ package org.sniggel.cluster.messages;
 
 // Commands //
 message AddCredentials {
-    int32 seqNo = 1;
+    int64 seqNo = 1;
     string id = 2;
     string username = 3;
     string password = 4;

@@ -45,14 +45,14 @@ class AuthenticatorSerializer(val system: ExtendedActorSystem)
 
   override def toBinary(msg: AnyRef): Array[Byte] = msg match {
     // Commands
-    case a: AddCredentials => ???
-    case a: Authenticate => ???
+    case a: AddCredentials => addCredentialsToBinary(a)
+    case a: Authenticate => authenticateToBinary(a)
 
     // Events
 
     // Replies
-    case a: InvalidCredentials => ???
-    case a: Authenticated => ???
+    case a: InvalidCredentials => invalidCredentialsToBinary(a)
+    case a: Authenticated => authenticatedToBinary(a)
 
     // State
 
@@ -75,4 +75,59 @@ class AuthenticatorSerializer(val system: ExtendedActorSystem)
       throw new NotSerializableException(
         s"Unimplemented deserialization of message with manifest [$manifest] in [${getClass.getName}]")
   }
+
+  /** to binary **/
+  // Commands
+  private def addCredentialsToBinary(addCredentials: AddCredentials): Array[Byte] = {
+    val builder = protobuf.AuthenticatorMessages.AddCredentials.newBuilder()
+    builder
+      .setId(addCredentials.id.toString)
+      .setPassword(addCredentials.passwordHash)
+      .setReplyTo(resolver.toSerializationFormat(addCredentials.replyTo))
+      .setSeqNo(addCredentials.seqNo)
+      .setUsername(addCredentials.username)
+      .build
+      .toByteArray
+  }
+
+  private def authenticateToBinary(authenticate: Authenticate): Array[Byte] = {
+    val builder = protobuf.AuthenticatorMessages.Authenticate.newBuilder()
+    builder
+      .setUsername(authenticate.username)
+      .setPassword(authenticate.password)
+      .setReplyTo(resolver.toSerializationFormat(authenticate.replyTo))
+      .build
+      .toByteArray
+  }
+
+  // Events
+  private def invalidCredentialsToBinary(credentials: InvalidCredentials): Array[Byte] = {
+    val builder = protobuf.AuthenticatorMessages.InvalidCredentials.newBuilder()
+    builder
+      .setTimestamp(credentials.timestamp)
+      .build
+      .toByteArray
+  }
+
+  private def authenticatedToBinary(auth: Authenticated): Array[Byte] = {
+    val builder = protobuf.AuthenticatorMessages.Authenticated.newBuilder()
+    builder
+      .setUsername(auth.username)
+      .build
+      .toByteArray
+  }
+
+  // Replies
+
+  // State
+
+  /** from binary **/
+  // Commands
+
+  // Events
+
+  // Replies
+
+  // State
+
 }
