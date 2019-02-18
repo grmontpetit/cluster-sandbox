@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-curl -v -X GET \
+curl -X GET \
     -H "Content-Type: application/json" \
-    http://172.180.0.4:9000/api/ping
+    http://172.180.0.4:8558/cluster/members
 
 echo

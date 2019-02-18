@@ -33,11 +33,11 @@ All request are sent to 172.180.0.{3~6} on port 9000. Curl samples are located i
 
 Simply invoke `docker-compose up` to start the cluster and wait for the cluster to come up:
 
-![Alt Text](images/docker-compose1.gif)
+![Alt Text](images/cluster-up.gif)
 
 Once the cluster is running we can check that the members have succesfully joined togheter (httpie command output):
 
-![Alt Text](images/httpget.gif)
+![Alt Text](images/cluster-members.gif)
 
 We can also check the output of `dig` to check the dns zones and records:
 

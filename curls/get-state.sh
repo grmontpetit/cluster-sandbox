@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 curl -v -X GET \
     -H "Content-Type: application/json" \
